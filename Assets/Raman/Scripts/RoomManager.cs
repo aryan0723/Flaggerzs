@@ -1,4 +1,5 @@
 using Photon.Pun;
+using UnityEngine;
 
 public class RoomManager : MonoBehaviourPunCallbacks
 {
@@ -14,5 +15,9 @@ public class RoomManager : MonoBehaviourPunCallbacks
         DontDestroyOnLoad(gameObject);
         Instance = this;
     }
-
+    public void OnApplicationQuit()
+    {
+        Destroy(gameObject);
+        Application.Quit();
+    }
 }
