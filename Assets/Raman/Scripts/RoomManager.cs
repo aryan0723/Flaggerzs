@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 public class RoomManager : MonoBehaviourPunCallbacks
 {
     public static RoomManager Instance;
+    [SerializeField] AudioSource BackGroundSound;
 
     private void Awake()
     {
@@ -16,6 +17,7 @@ public class RoomManager : MonoBehaviourPunCallbacks
         }
         DontDestroyOnLoad(gameObject);
         Instance = this;
+        BackGroundSound.Play();
     }
     public override void OnEnable()
     {

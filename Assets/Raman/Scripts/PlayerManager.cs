@@ -2,23 +2,24 @@ using Photon.Pun;
 using Photon.Realtime;
 using System.IO;
 using System.Linq;
+using TMPro;
 using UnityEngine;
-
 
 public class PlayerManager : MonoBehaviour
 {
     PhotonView pv;
     GameObject controller;
-    private int flagCount;
+    private int kills;
+    public TMP_Text killText;
 
     private void Awake()
     {
         pv = GetComponent<PhotonView>();
+        killText = GameObject.FindGameObjectWithTag("flag").GetComponent<TMP_Text>();
     }
 
     private void Start()
     {
-        flagCount = 0;
         if (pv.IsMine)
         {
             CreateController();
@@ -38,6 +39,22 @@ public class PlayerManager : MonoBehaviour
 
     public void GetKill()
     {
+        pv.RPC("RPC_GetKill", RpcTarget.All);
+    }
+
+    [PunRPC]
+
+    void RPC_GetKill()
+    {
+        if (pv.IsMine)
+        {
+            kills++;
+            killText.text = kills.ToString();
+
+        }
+        //Hashtable hash = new Hashtable();
+        //hash.Add("kills", kills);
+        //PhotonNetwork.LocalPlayer.SetCustomProperties(hash);
 
     }
 

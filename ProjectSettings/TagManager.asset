@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Beam
   - Bullet
+  - flag
   layers:
   - Default
   - TransparentFX

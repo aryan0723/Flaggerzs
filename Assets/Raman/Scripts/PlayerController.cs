@@ -30,6 +30,9 @@ public class PlayerController : MonoBehaviourPunCallbacks, IDamagable
 
 
     PlayerManager playerManager;
+    [SerializeField] AudioSource JumpSound;
+    [SerializeField] AudioSource gunSound;
+
 
     private void Start()
     {
@@ -64,6 +67,7 @@ public class PlayerController : MonoBehaviourPunCallbacks, IDamagable
         if (Input.GetMouseButtonDown(0))
         {
             gun.Use();
+            gunSound.Play();
         }
     }
 
@@ -124,6 +128,7 @@ public class PlayerController : MonoBehaviourPunCallbacks, IDamagable
         if (Input.GetKeyDown(KeyCode.Space) && isCharacterGrounded)
         {
             velocity.y += Mathf.Sqrt(jumpForce * -2 * gravity);
+            JumpSound.Play();
         }
     }
     private void GetReference()
@@ -139,11 +144,11 @@ public class PlayerController : MonoBehaviourPunCallbacks, IDamagable
 
     public void TakeDamage(float damage)
     {
-        pv.RPC("RPC_TakeDamage", RpcTarget.All, damage);
+        pv.RPC("RPC_TakeDamage", pv.Owner, damage);
     }
 
     [PunRPC]
-    private void RPC_TakeDamage(float damage)
+    private void RPC_TakeDamage(float damage, PhotonMessageInfo info)
     {
         if (!pv.IsMine) return;
 
@@ -152,6 +157,9 @@ public class PlayerController : MonoBehaviourPunCallbacks, IDamagable
         if (currentHealth <= 0)
         {
             Die();
+            PlayerManager.Find(info.Sender).GetKill();
+
+
         }
 
     }
