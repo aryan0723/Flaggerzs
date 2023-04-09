@@ -1,4 +1,5 @@
-public interface Item
+using UnityEngine;
+public abstract class Item : MonoBehaviour
 {
-    void Use();
+    public abstract void Use();
 }

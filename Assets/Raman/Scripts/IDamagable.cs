@@ -1,6 +1,4 @@
-using UnityEngine;
-
-public class IDamagable : MonoBehaviour
+public interface IDamagable
 {
-
+    public void TakeDamage(float damage);
 }

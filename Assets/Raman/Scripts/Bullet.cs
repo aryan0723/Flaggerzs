@@ -1,14 +1,21 @@
+using Photon.Pun;
 using UnityEngine;
 
 public class Bullet : MonoBehaviour
 {
 
     public LayerMask collisionMask;
-    public Color trailColor;
     float speed = 10;
     float damage = 1;
     float lifeTime = 3f;
     float skinWidth = 0.1f;
+
+    PhotonView pv;
+
+    private void Awake()
+    {
+        pv = GetComponent<PhotonView>();
+    }
 
     private void Start()
     {
@@ -19,9 +26,11 @@ public class Bullet : MonoBehaviour
         {
             OnHitObject(initialCollisions[0], transform.position);
         }
-        GetComponent<TrailRenderer>().material.SetColor("_TintColor", trailColor);
     }
-
+    public void SetSpeed(float newSpeed)
+    {
+        speed = newSpeed;
+    }
     private void Update()
     {
         float moveDistance = speed * Time.deltaTime;
@@ -34,11 +43,6 @@ public class Bullet : MonoBehaviour
         //        transform.Translate(transform.forward*Time.deltaTime*speed);
         // here transform will not come... transform point toward one direction...
     }
-
-    public void SetSpeed(float newSpeed)
-    {
-        speed = newSpeed;
-    }
     void CheckCollision(float moveDistance)
     {
         Ray ray = new Ray(transform.position, transform.forward);
@@ -46,17 +50,28 @@ public class Bullet : MonoBehaviour
         if (Physics.Raycast(ray, out hit, moveDistance + skinWidth, collisionMask, QueryTriggerInteraction.Collide))
         {// we want it to collide with triggers..
          //which is why queryTriggerIntegraction is means..
+
+            Destroy(gameObject);
             OnHitObject(hit.collider, hit.point);
 
         }
     }
+
+
     void OnHitObject(Collider c, Vector3 hitPoint)
     {
-        IDamagable damagableObject = c.GetComponent<IDamagable>();
-        if (damagableObject != null)
+        IDamagable damagable = c.gameObject.GetComponent<IDamagable>();
+        if (damagable != null)
         {
-            //damagableObject.TakeHit(damage, hitPoint, transform.forward);
+            pv.RPC("RPC_Shoot", RpcTarget.All, hitPoint);
+            damagable.TakeDamage(damage);
         }
-        GameObject.Destroy(gameObject);
+    }
+
+    [PunRPC]
+    void RPC_Shoot(Vector3 hitPosition)
+    {
+        if (pv.IsMine)
+            Debug.Log(hitPosition.ToString());
     }
 }

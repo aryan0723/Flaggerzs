@@ -1,64 +1,163 @@
+using Photon.Pun;
 using UnityEngine;
-[RequireComponent(typeof(CharacterController))]
-public class HeroController : MonoBehaviour
+public class PlayerController : MonoBehaviourPunCallbacks, IDamagable
 {
+    [Header("Move Variable")]
+    private float moveSpeed;
+    [SerializeField] private float walkSpeed;
+    [SerializeField] private float runSpeed;
+    [SerializeField] private float jumpForce;
+    private Vector3 moveDirection = Vector3.zero;
     private CharacterController controller;
-    private Vector3 playerVelocity;
+    [Header("Gravity Variable")]
+    [SerializeField] private LayerMask groundMask;
+    [SerializeField] private float groundDistance;
 
-    [SerializeField] private float moveSpeed = 10;
-    [SerializeField] private float jumpSpeed = 10;
-    [SerializeField] private float gravityValue = -9.1f;
+    [SerializeField] private float gravity;
+    [SerializeField] private bool isCharacterGrounded = false;
+    private Vector3 velocity = Vector3.zero;
 
-    [SerializeField] private bool isGrounded;
-    [SerializeField] private LayerMask whatIsGround;
-    [SerializeField] private Transform groundCheck;
-    [SerializeField] private float groundCheckRadius;
+    [Header("Gun")]
+    [SerializeField] private SingleShotGun gun;
+
+    [Header("Animation")]
+    private Animator anim;
+
+    private PhotonView pv;
+
+    const float maxHealth = 3f;
+    float currentHealth;
 
 
-    private InputManager inputManager;
-    private Transform cameraTransform;
+    PlayerManager playerManager;
 
     private void Start()
     {
-        isGrounded = true;
-        controller = GetComponent<CharacterController>();
-        //inputManager = GetComponent<InputManager>();
-        inputManager = InputManager.Instance;
-        cameraTransform = Camera.main.transform;
-    }
+        currentHealth = maxHealth;
 
+        GetReference();
+        InitVariable();
+        pv = GetComponent<PhotonView>();
+        playerManager = PhotonView.Find((int)pv.InstantiationData[0]).GetComponent<PlayerManager>();
+
+        if (!pv.IsMine)
+        {
+            Destroy(GetComponentInChildren<Camera>().gameObject);
+        }
+
+    }
     private void Update()
     {
+        if (!pv.IsMine) return;
+
+        HandleIsGrounded();
+        HandleJumping();
+
+        HandleGravity();
+        HandleRunning();
         HandleMovement();
+        HandleShooting();
     }
 
+    private void HandleShooting()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            gun.Use();
+        }
+    }
+
+
+    private void HandleAnimation()
+    {
+        if (moveDirection == Vector3.zero)
+        {
+            anim.SetFloat("speed", 0);
+        }
+        else if (moveDirection != Vector3.zero && !Input.GetKey(KeyCode.LeftShift))
+        {
+            anim.SetFloat("speed", 0.5f);
+        }
+        else if (moveDirection != Vector3.zero && Input.GetKey(KeyCode.LeftShift))
+        {
+            anim.SetFloat("speed", 1f);
+        }
+    }
     private void HandleMovement()
     {
-        isGrounded = controller.isGrounded;
-        if (isGrounded && playerVelocity.y < 0)
+        float moveX = Input.GetAxisRaw("Horizontal");// get axis causes some sliding ... 
+        float moveZ = Input.GetAxisRaw("Vertical");// use of GetAxis cause unnesseary sliding due to smoothing..therefore we use get axis raw
+
+        moveDirection = new Vector3(moveX, 0, moveZ).normalized;
+
+
+        controller.Move(transform.TransformDirection(moveDirection) * moveSpeed * Time.deltaTime);
+
+    }
+    private void HandleRunning()
+    {
+        if (Input.GetKeyDown(KeyCode.LeftShift))
         {
-            playerVelocity.y = 0f;
+            moveSpeed = runSpeed;
         }
-        Vector2 movement = inputManager.GetPlayerMovement();
-        Vector3 move = new Vector3(movement.x, 0f, movement.y);
-
-        move = cameraTransform.forward * move.z + cameraTransform.right * move.x;
-
-        controller.Move(move * Time.deltaTime * moveSpeed);
-
-        //if (move != Vector3.zero)
-        //{
-        //    gameObject.transform.forward = move;
-        //}
-
-        if (inputManager.PlayerJumped() && isGrounded)
+        if (Input.GetKeyUp(KeyCode.LeftShift))
         {
-            playerVelocity.y += Mathf.Sqrt(jumpSpeed * (-3.0f) * gravityValue);
+            moveSpeed = walkSpeed;
+        }
+    }
+    private void HandleIsGrounded()
+    {
+        isCharacterGrounded = Physics.CheckSphere(transform.position, groundDistance, groundMask);
+
+    }
+    private void HandleGravity()
+    {
+        if (isCharacterGrounded && velocity.y < 0)
+        {
+            velocity.y = -2f;
+        }
+        velocity.y += gravity * Time.deltaTime;
+        controller.Move(velocity * Time.deltaTime);
+    }
+    private void HandleJumping()
+    {
+        if (Input.GetKeyDown(KeyCode.Space) && isCharacterGrounded)
+        {
+            velocity.y += Mathf.Sqrt(jumpForce * -2 * gravity);
+        }
+    }
+    private void GetReference()
+    {
+        controller = GetComponent<CharacterController>();
+        anim = GetComponentInChildren<Animator>();
+    }
+    private void InitVariable()
+    {
+        moveSpeed = walkSpeed;
+    }
+
+
+    public void TakeDamage(float damage)
+    {
+        pv.RPC("RPC_TakeDamage", RpcTarget.All, damage);
+    }
+
+    [PunRPC]
+    private void RPC_TakeDamage(float damage)
+    {
+        if (!pv.IsMine) return;
+
+        currentHealth -= damage;
+
+        if (currentHealth <= 0)
+        {
+            Die();
         }
 
-        playerVelocity.y += gravityValue * Time.deltaTime;
-        controller.Move(playerVelocity * Time.deltaTime);
+    }
 
-
+    private void Die()
+    {
+        playerManager.Die();
     }
 }
